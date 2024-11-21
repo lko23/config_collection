@@ -1,0 +1,101 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3101
+  grpc_listen_port: 9097
+  grpc_server_max_recv_msg_size: 20971520 # increase to 20 MB, this is double the size of max body size of preceding data pipeline
+  grpc_server_max_send_msg_size: 20971520 # increase to 20 MB, this is double the size of max body size of preceding data pipeline
+  log_level: warn # debug, info, warn, error
+
+internal_server:
+  http_listen_port: 3111
+
+ingester:
+  wal:
+    enabled: true
+    dir: /data/loki/wal
+#     flush_on_shutdown: true # do not activate, can cause database inconsistency when process is killed during flushing
+  max_chunk_age: 2h # for any open stream there are no events allowed older than max_chunk_age/2
+  chunk_idle_period: 2h
+  chunk_encoding: snappy
+#  concurrent_flushes: 1024
+
+common:
+  instance_addr: 0.0.0.0 # default 127.0.0.1
+  path_prefix: /data/loki
+  storage:
+    filesystem:
+      chunks_directory: /data/loki/chunks
+      rules_directory: /data/loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+querier:
+  query_ingesters_within: 0 # always search in ingester
+  max_concurrent: 24 # corresponds to about the number of used CPUs for queries
+
+query_scheduler:
+  max_outstanding_requests_per_tenant: 32000
+
+#query_range:
+#  parallelise_shardable_queries: false
+#  results_cache:
+#    cache:
+#      embedded_cache:
+#        enabled: true
+#        max_size_mb: 100
+
+#distributor:
+#  rate_store:
+#    max_request_parallelism: 2048
+
+limits_config:
+  ingestion_burst_size_mb: 4096
+  ingestion_rate_mb: 2048
+  per_stream_rate_limit: 1024M
+  per_stream_rate_limit_burst: 2048M
+  retention_period: 180d
+  max_global_streams_per_user: 0 # unlimited number of active streams per user
+#  allow_structured_metadata: false
+  shard_streams:
+    enabled: false
+#    logging_enabled: false
+#    desired_rate: 3MB
+  discover_service_name:
+  discover_log_levels: false
+#  max_label_names_per_series: 30
+#  max_line_size: 0
+  reject_old_samples: false
+  max_query_length: 181d
+  query_timeout: 2m
+  max_querier_bytes_read: 0 #disable limit 150GB
+
+schema_config:
+  configs:
+    - from: 2024-05-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+compactor:
+  working_directory: /data/loki/compactor # working_directory is the directory where marked chunks and temporary tables will be saved.
+#  compaction_interval: 10m
+  retention_enabled: true # retention_delete_delay is the delay after which the Compactor will delete marked chunks.
+#  retention_delete_delay: 15m
+#  retention_delete_worker_count: 150 # retention_delete_worker_count specifies the maximum quantity of goroutine workers instantiated to delete chunks
+  delete_request_store: filesystem
+
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 30d
+
+analytics:
+  reporting_enabled: false
+
+#ruler:
+#  alertmanager_url: http://localhost:9093
