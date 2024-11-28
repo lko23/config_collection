@@ -2,19 +2,42 @@ logging {
   level = "info"
 }
 
-local.file "hostname" {
-  filename = "/etc/hosts"
+// linux scrape
+//local.file "hostname" {
+//  filename = "/etc/hostname"
+//}
+
+//local.file_match "local_files" {
+//  path_targets = [{"__path__" = "/var/log/**/*.log"}, {"__path__" = "/var/log/syslog"}]
+//  sync_period = "5s"
+//}
+
+//loki.source.file "log_scrape" {
+//  targets    = local.file_match.local_files.targets
+//  forward_to = [loki.process.log_normalize.receiver]
+//  tail_from_end = true
+//}
+
+// win event log scrape
+loki.source.windowsevent "application"  {
+    eventlog_name = "Application"
+    use_incoming_timestamp = true
+    labels     = {"host" = "host","service_name" = "winevent:application"}
+    forward_to = [loki.process.log_normalize.receiver]
 }
 
-local.file_match "local_files" {
-  path_targets = [{"__path__" = "/var/log/**/*.log"}, {"__path__" = "/var/log/syslog"}]
-  sync_period = "5s"
+loki.source.windowsevent "security"  {
+    eventlog_name = "Security"
+    use_incoming_timestamp = true
+    labels     = {"host" = "host","service_name" = "winevent:security"}
+    forward_to = [loki.process.log_normalize.receiver]
 }
 
-loki.source.file "log_scrape" {
-  targets    = local.file_match.local_files.targets
-  forward_to = [loki.process.log_normalize.receiver]
-  tail_from_end = true
+loki.source.windowsevent "system"  {
+    eventlog_name = "System"
+    use_incoming_timestamp = true
+    labels     = {"host" = "host","service_name" = "winevent:system"}
+    forward_to = [loki.process.log_normalize.receiver]
 }
 
 loki.process "log_normalize" {
@@ -23,37 +46,37 @@ loki.process "log_normalize" {
   //    expression  = ".*Connection closed by authenticating user root"
   //    drop_counter_reason = "noisy"
   //  }
-  stage.regex {
-    expression = `(?P<level>(?i)\b(info|debug|error|warn|trace|fatal)\b)`
-  }
+//  stage.regex {
+//    expression = `(?P<level>(?i)\b(info|debug|error|warn|trace|fatal)\b)`
+//  }
 
-  stage.template {
-    source   = "level_cleansed"
-    template = `{{ default "INFO" .level | ToLower }}`
-  }
+//  stage.template {
+//    source   = "level_cleansed"
+//    template = `{{ default "INFO" .level | ToLower }}`
+//  }
 
-  stage.labels {
-    values = { "level" = "level_cleansed" }
-  }
+//  stage.labels {
+//    values = { "level" = "level_cleansed" }
+//  }
 
   stage.static_labels {
     values = {
-      host = "grafana.domain.tld",
+      test = "test",
     }
 }
 
-stage.timestamp {
-  source = "time"
-  format = "2006-01-02T15:04:05.000000000Z"
-  //format = "2006-01-02T15:04:05,000-07:00"
-}
+//stage.timestamp {
+//  source = "time"
+//  format = "2006-01-02T15:04:05.000000000Z"
+//  //format = "2006-01-02T15:04:05,000-07:00"
+//}
 
   forward_to = [loki.write.grafana_loki.receiver]
 }
 
 loki.write "grafana_loki" {
   endpoint {
-    url = "http://grafana.domain.tld:3100/loki/api/v1/push"
+    url = "http://host.domain.tld:80/loki/api/v1/push"
 
     // basic_auth {
     //  username = "admin"
