@@ -1,5 +1,4 @@
-logging {
-  level = "info"
+  level = "debug"
 }
 
 // linux scrape
@@ -21,98 +20,98 @@ logging {
 // win event log scrape
 loki.source.windowsevent "application"  {
     eventlog_name = "Application"
+    exclude_event_data = false
+    exclude_user_data = false
+    exclude_event_message = true
     use_incoming_timestamp = true
-    labels     = {"host" = "host","service_name" = "winevent:application"}
+    labels     = {"host" = to_lower(constants.hostname),"service_name" = "alloy:winevent:application"}
     forward_to = [loki.process.log_normalize.receiver]
 }
 
 loki.source.windowsevent "security"  {
     eventlog_name = "Security"
+    exclude_event_data = false
+    exclude_user_data = false
+    exclude_event_message = true
     use_incoming_timestamp = true
-    labels     = {"host" = "host","service_name" = "winevent:security"}
+    labels     = {"host" = to_lower(constants.hostname),"service_name" = "alloy:winevent:security"}
     forward_to = [loki.process.log_normalize.receiver]
 }
 
 loki.source.windowsevent "system"  {
     eventlog_name = "System"
+    exclude_event_data = false
+    exclude_user_data = false
+    exclude_event_message = true
     use_incoming_timestamp = true
-    labels     = {"host" = "host","service_name" = "winevent:system"}
+    labels     = {"host" = to_lower(constants.hostname),"service_name" = "alloy:winevent:system"}
     forward_to = [loki.process.log_normalize.receiver]
 }
 
-loki.process "log_normalize" {
-  //stage.drop {
-  //    source = ""
-  //    expression  = ".*Connection closed by authenticating user root"
-  //    drop_counter_reason = "noisy"
-  //  }
-//  stage.regex {
-//    expression = `(?P<level>(?i)\b(info|debug|error|warn|trace|fatal)\b)`
-//  }
-
-//  stage.template {
-//    source   = "level_cleansed"
-//    template = `{{ default "INFO" .level | ToLower }}`
-//  }
-
-//  stage.labels {
-//    values = { "level" = "level_cleansed" }
-//  }
-
-  stage.static_labels {
-    values = {
-      test = "test",
-    }
+loki.source.windowsevent "powershell"  {
+    eventlog_name = "Windows PowerShell"
+    exclude_event_data = false
+    exclude_user_data = false
+    exclude_event_message = true
+    use_incoming_timestamp = true
+    labels     = {"host" = to_lower(constants.hostname),"service_name" = "alloy:winevent:powershell"}
+    forward_to = [loki.process.log_normalize.receiver]
 }
 
-//stage.timestamp {
-//  source = "time"
-//  format = "2006-01-02T15:04:05.000000000Z"
-//  //format = "2006-01-02T15:04:05,000-07:00"
-//}
+//loki.relabel "add_static_label" {
+//    forward_to = [loki.write.grafana_loki.receiver]
+
+//    rule {
+//        target_label = "host"
+//        replacement  = constants.hostname
+//    }
+
+loki.process "log_normalize" {
+//stage.drop {
+//    source = ""
+//    expression  = ".*Connection closed by authenticating user root"
+//    drop_counter_reason = "noisy"
+//  }
+
+  stage.regex {
+    expression = `(?P<level>(?i)\b(info|debug|error|warn|trace|fatal|emergency|alert|panic)\b)`
+  }
+
+  stage.template {
+    source   = "level_cleansed"
+    template = `{{ default "unknown" .level | ToLower }}`
+  }
+
+  stage.labels {
+    values = { "level" = "level_cleansed" }
+  }
+
+  stage.label_keep {
+    values = [ "host", "service_name", "level" ]
+  }
+
+//  stage.static_labels {
+//    values = {
+//      test = "test",
+//    }
+//  }
+
+//  stage.timestamp {
+//    source = "time"
+//    format = "2006-01-02T15:04:05.000000000Z"
+//    //format = "2006-01-02T15:04:05,000-07:00"
+//  }
 
   forward_to = [loki.write.grafana_loki.receiver]
 }
 
 loki.write "grafana_loki" {
   endpoint {
-    url = "http://host.domain.tld:80/loki/api/v1/push"
+    url = "http://loki-grafana.domain.tld:port/loki/api/v1/push"
 
     // basic_auth {
     //  username = "admin"
     //  password = "admin"
     // }
   }
-}
-
-// Prometheus exporter starts here
-
-prometheus.exporter.unix "local_system" { }
-
-prometheus.scrape "scrape_metrics" {
-  targets         = prometheus.exporter.unix.local_system.targets
-  forward_to      = [prometheus.relabel.filter_metrics.receiver]
-  scrape_interval = "10s"
-  //honor_labels    = true
-}
-
-prometheus.relabel "filter_metrics" {
-  rule {
-    action        = "drop"
-    source_labels = ["env"]
-    regex         = "dev"
-  }
-
-  forward_to = [prometheus.remote_write.metrics_service.receiver]
-}
-
-prometheus.remote_write "metrics_service" {
-    endpoint {
-        url = "http://grafana.domain.tld:9090/api/v1/write"
-
-        // basic_auth {
-        //   username = "admin"
-        //   password = "admin"
-        // }
-    }
 }
