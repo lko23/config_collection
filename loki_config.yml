@@ -1,22 +1,22 @@
 auth_enabled: false
 
 server:
-  http_listen_port: 3101
-  grpc_listen_port: 9097
+  http_listen_port: 3100
+  grpc_listen_port: 9095
   grpc_server_max_recv_msg_size: 20971520 # increase to 20 MB, this is double the size of max body size of preceding data pipeline
   grpc_server_max_send_msg_size: 20971520 # increase to 20 MB, this is double the size of max body size of preceding data pipeline
   log_level: warn # debug, info, warn, error
 
 internal_server:
-  http_listen_port: 3111
+  http_listen_port: 3110
 
 ingester:
   wal:
     enabled: true
     dir: /data/loki/wal
 #     flush_on_shutdown: true # do not activate, can cause database inconsistency when process is killed during flushing
-  max_chunk_age: 2h # for any open stream there are no events allowed older than max_chunk_age/2
-  chunk_idle_period: 2h
+  max_chunk_age: 12h # for any open stream there are no events allowed older than max_chunk_age/2
+  chunk_idle_period: 12h # maximum time an inactive stream is keept open before flushing
   chunk_encoding: snappy
 #  concurrent_flushes: 1024
 
@@ -70,7 +70,8 @@ limits_config:
   reject_old_samples: false
   max_query_length: 181d
   query_timeout: 2m
-  max_querier_bytes_read: 0 #disable limit 150GB
+  max_querier_bytes_read: 0 #disable default limit of 150GB
+  max_query_series: 3000 # maximum number of data series for aggregation functions when querying
 
 schema_config:
   configs:
@@ -92,7 +93,7 @@ compactor:
 
 table_manager:
   retention_deletes_enabled: true
-  retention_period: 30d
+  retention_period: 180d
 
 analytics:
   reporting_enabled: false
